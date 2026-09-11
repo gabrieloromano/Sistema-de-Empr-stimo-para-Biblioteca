@@ -1,4 +1,8 @@
+import os
 from time import sleep
+import json
+
+save_path = "C:\\ProgramData\\Librarys\\"
 
 op_bibl = ["[1] Cadastrar biblioteca",
            "[2] Acessar biblioteca"]
@@ -23,13 +27,39 @@ def pergunta(mensagem):
 class Biblioteca:
     def __init__(self, nome, num_filial):
         self.nome = nome
-        self.num_filial = num_filial.strip()
-        self.estoque = []
+        self.num_filial = str(num_filial)
         self.estoque_dict = []
-        self.path = f"C:\\ProgramData\\Librarys\\{self.nome}.json"
+        self.path = f"{save_path}{f"{self.num_filial} - {self.nome}"}.json"
+        if not os.path.isfile(self.path):
+            arq = open(self.path, "w")
+            arq.write("[]")
+            arq.close()
+            self.estoque = []
+        else:
+            self.estoque = self.load_storage()
+        
 
     def __str__(self):
         return f"{"[" + self.num_filial + "] " + self.nome:^50}"
+
+    def load_storage(self):
+        self.estoque_dict = []
+        lista_interna = []
+        if os.path.isfile(self.path):
+            arq = open(self.path, "r")
+            self.estoque_dict = json.load(arq)
+            for prod in self.estoque_dict:
+                lista_interna.append(Livro(**prod)) if prod["type"] == "Livro" else lista_interna.append(Revista(**prod))
+            return lista_interna
+        return []
+
+    def save_storage(self):
+        self.estoque_dict = []
+        arq = open(self.path, "w")
+        for item in self.estoque:
+            self.estoque_dict.append(item.__dict__)
+        json.dump(self.estoque_dict, arq)
+        arq.close()
 
     def adicionar_item(self):
         while True:
@@ -68,6 +98,7 @@ class Biblioteca:
                         continue
 
             print(f"\nSucesso no cadastro {"do livro" if item_atual.type=="Livro" else "da revista"} {item_atual.nome} (COD {item_atual.codigo})!")
+            self.save_storage()
             if pergunta("Deseja cadastrar outro produto?"):
                 continue
             else:
@@ -88,22 +119,25 @@ class ItemBiblioteca:
         return f"{self.codigo:^10} - {self.nome}"
 
 class Livro(ItemBiblioteca):
-    def __init__(self, codigo, nome, genero, autor, editora, ano, page_num, possivel_empre=None, emprestado=False):
-        super().__init__(codigo, nome, genero, possivel_empre=None, emprestado=False)
+    def __init__(self, codigo, nome, genero, autor, editora, ano, page_num, type="Livro", possivel_empre=None, emprestado=False):
+        super().__init__(codigo, nome, genero, possivel_empre, emprestado)
         self.autor = autor
         self.editora = editora
         self.ano = ano
         self.page_num = page_num
-        self.type = "Livro"
+        self.type = type
 
 
 class Revista(ItemBiblioteca):
-    def __init__(self, codigo, nome, genero, edicao, mes, editora, possivel_emprest = None, emprestado=False):
-        super().__init__(codigo, nome, genero, possivel_emprest = None, emprestado=False)
+    def __init__(self, codigo, nome, genero, edicao, mes, editora, type="Revista", possivel_empre = None, emprestado=False):
+        super().__init__(codigo, nome, genero, possivel_empre, emprestado)
         self.edicao = edicao
         self.mes = mes
         self.editora = editora
-        self.type = "Revista"
+        self.type = type
+
+    def __str__(self):
+        return f"{self.codigo:^10} - {self.nome} {self.edicao}ª edição - Mês de {self.mes} - Editora {self.editora}"
 
 def menu_biblioteca(biblioteca):
     while True:
@@ -130,6 +164,22 @@ def menu_biblioteca(biblioteca):
             case "2":
                 biblioteca.adicionar_item()
 
+def load_library():
+    internal_list = []
+    for item in os.listdir(save_path):
+        if item.endswith(".json"):
+            filial, nome = item.strip().split("-")
+            nome = nome.strip()
+            internal_list.append(Biblioteca(nome.removesuffix(".json"), filial.strip()))
+    return internal_list
+
+def get_biblioteca(filial):
+    for item in bibliotecas:
+        if item.num_filial == filial:
+            return item
+
+bibliotecas = load_library()
+
 def main():
     while True:
         print(f"{" SISTEMA DE BIBLIOTECA ":=^50}\n")
@@ -141,7 +191,11 @@ def main():
         match select:
             case 1:
                 while True:
-                    nome, filial = input("\nDigite o nome e filial da nova biblioteca respectivamente, separando-os por vírgula: ").split(",")
+                    nome = input("\nDigite o nome da nova biblioteca: ")
+                    if "-" in nome:
+                        print("\nO caractére '-' não é suportado, insira outro nome!")
+                        continue
+                    filial = int(input("\nAgora digite o número de filial da nova biblioteca: "))
                     bibliotecas.append(Biblioteca(nome, filial))
                     if pergunta("Deseja cadastrar uma nova biblioteca?"):
                         continue
@@ -163,12 +217,5 @@ def main():
                 bibl = get_biblioteca(selecao_filial)
 
                 menu_biblioteca(bibl)
-
-bibliotecas = [Biblioteca("Padrao", "1")]
-
-def get_biblioteca(filial):
-    for item in bibliotecas:
-        if item.num_filial == filial:
-            return item
 
 main()
