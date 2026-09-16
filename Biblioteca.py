@@ -5,12 +5,28 @@ import json
 save_path = "C:\\ProgramData\\Librarys\\"
 
 op_bibl = ["[1] Cadastrar biblioteca",
-           "[2] Acessar biblioteca"]
+           "[2] Acessar biblioteca",
+           "[3] Sair"]
 
 op_item = ["[1] Listar itens",
            "[2] Cadastrar novo item",
            "[3] Emprestar item",
-           "[4] Devolver item"]
+           "[4] Devolver item",
+           "[5] Retornar ao menu"]
+
+def get_item(searched, list, variable=None):
+    if variable:
+        for item in list:
+            if getattr(item, f"{variable}") == searched:
+                return item
+            else:
+                return None
+    else:
+        for item in list:
+                    if item == searched:
+                        return item
+                    else:
+                        return None
 
 def pergunta(mensagem):
     while True:
@@ -38,7 +54,6 @@ class Biblioteca:
         else:
             self.estoque = self.load_storage()
         
-
     def __str__(self):
         return f"{"[" + self.num_filial + "] " + self.nome:^50}"
 
@@ -61,66 +76,31 @@ class Biblioteca:
         json.dump(self.estoque_dict, arq)
         arq.close()
 
-    def adicionar_item(self):
-        while True:
-            print(f"\n{"CADASTRO DE PRODUTO":=^50}\n")
-            item_atual = None
-            codigo = input("\nInsira o codigo do item a ser cadastrado: ")
-            nome = input("\nDigite o nome do item a ser cadastrado: ")
-            genero = input("\nDigite o gênero do item cadastrado: ")
+    def add_item(self, item):
+        self.estoque.append(item)
+        return
 
-            while True:
-                select = input("\nO item cadastrado é um livro ou revista?\n" \
-                "[1] Livro\n" \
-                "[2] Revista\n" \
-                "Seleção: ").lower()
-
-                match select:
-                    case "1" | "livro":
-                        autor = input("\nInsira o nome do autor do livro: ")
-                        editora = input("\nInsira o nome da editora do livro: ")
-                        ano = input("\nDigite o ano de lançamento do livro: ")
-                        page_num = int(input("\nDigite o número de páginas do livro: "))
-
-                        item_atual = Livro(codigo,nome,genero,autor,editora,ano,page_num)
-                        self.estoque.append(item_atual)
-                        break
-                    case "2" | "revista":
-                        edicao = input("\nInsira o nº da edição: ")
-                        mes = input("\nInsira o mês de emissão da edição: ")
-                        editora = input("\nInsira o nome da editora da revista: ")
-
-                        item_atual = Revista(codigo,nome,genero,edicao,mes,editora)
-                        self.estoque.append(item_atual)
-                        break
-                    case _:
-                        print("\nInsira uma opção válida.")
-                        continue
-
-            print(f"\nSucesso no cadastro {"do livro" if item_atual.type=="Livro" else "da revista"} {item_atual.nome} (COD {item_atual.codigo})!")
-            self.save_storage()
-            if pergunta("Deseja cadastrar outro produto?"):
-                continue
-            else:
-                break
-
-    def emprest_item(self, item, destino):
-        destino.adicionar_item(item)        
+    def lend_item(self, item, destiny):
+        item.can_Lend = False
+        item.isActive = False
+        destiny.add_item(item)
 
 class ItemBiblioteca:
-    def __init__(self, codigo, nome, genero, possivel_empre=None, emprestado=False):
+    def __init__(self, codigo, nome, genero, can_lend=True, isLent=False, isActive = True, origin=None):
         self.codigo = codigo
         self.nome = nome
         self.genero = genero
-        self.possivel_empre = possivel_empre
-        self.emprestado = emprestado
+        self.can_lend = can_lend
+        self.isLent = isLent
+        self.isActive = isActive
+        self.origin = origin
 
     def __str__(self):
         return f"{self.codigo:^10} - {self.nome}"
 
 class Livro(ItemBiblioteca):
-    def __init__(self, codigo, nome, genero, autor, editora, ano, page_num, type="Livro", possivel_empre=None, emprestado=False):
-        super().__init__(codigo, nome, genero, possivel_empre, emprestado)
+    def __init__(self, codigo, nome, genero, autor, editora, ano, page_num, type="Livro", can_lend=True, isLent=False, isActive=True, origin = None):
+        super().__init__(codigo, nome, genero, can_lend, isLent, isActive, origin)
         self.autor = autor
         self.editora = editora
         self.ano = ano
@@ -129,8 +109,8 @@ class Livro(ItemBiblioteca):
 
 
 class Revista(ItemBiblioteca):
-    def __init__(self, codigo, nome, genero, edicao, mes, editora, type="Revista", possivel_empre = None, emprestado=False):
-        super().__init__(codigo, nome, genero, possivel_empre, emprestado)
+    def __init__(self, codigo, nome, genero, edicao, mes, editora, type="Revista", can_lend = None, isLent=False, isActive=True, origin = None):
+        super().__init__(codigo, nome, genero, can_lend, isLent, isActive, origin)
         self.edicao = edicao
         self.mes = mes
         self.editora = editora
@@ -162,7 +142,59 @@ def menu_biblioteca(biblioteca):
                     break
 
             case "2":
-                biblioteca.adicionar_item()
+                while True:
+                    print(f"\n{"CADASTRO DE PRODUTO":=^50}\n")
+                    item_atual = None
+                    codigo = input("\nInsira o codigo do item a ser cadastrado: ")
+                    nome = input("\nDigite o nome do item a ser cadastrado: ")
+                    genero = input("\nDigite o gênero do item cadastrado: ")
+        
+                    while True:
+                        select = input("\nO item cadastrado é um livro ou revista?\n" \
+                        "[1] Livro\n" \
+                        "[2] Revista\n" \
+                        "Seleção: ").lower()
+        
+                        match select:
+                            case "1" | "livro":
+                                autor = input("\nInsira o nome do autor do livro: ")
+                                editora = input("\nInsira o nome da editora do livro: ")
+                                ano = input("\nDigite o ano de lançamento do livro: ")
+                                page_num = int(input("\nDigite o número de páginas do livro: "))
+        
+                                item_atual = Livro(codigo,nome,genero,autor,editora,ano,page_num, origin=biblioteca.nome)
+                                break
+                            case "2" | "revista":
+                                edicao = input("\nInsira o nº da edição: ")
+                                mes = input("\nInsira o mês de emissão da edição: ")
+                                editora = input("\nInsira o nome da editora da revista: ")
+        
+                                item_atual = Revista(codigo,nome,genero,edicao,mes,editora, origin=biblioteca.nome)
+                                break
+                            case _:
+                                print("\nInsira uma opção válida.")
+                                continue
+
+                    biblioteca.add_item(item_atual)
+                    print(f"\nSucesso no cadastro {"do livro" if item_atual.type=="Livro" else "da revista"} {item_atual.nome} (COD {item_atual.codigo})!")
+                    biblioteca.save_storage()
+                    if pergunta("Deseja cadastrar outro produto?"):
+                        continue
+                    else:
+                        break
+            case "3":
+                while True:
+                    print(f"\n{"EMPRÉSTIMO DE PRODUTO":=^50}\n")
+
+                    print("\nSelecione o item que deseja emprestar: \n")
+                    for item in biblioteca.estoque:
+                        print(item)
+
+                    cod_item = get_item(input("\nDigite o código que deseja emprestar: "), biblioteca.estoque, "codigo")
+
+                    print(cod_item)
+
+                    biblioteca.lend_item()
 
 def load_library():
     internal_list = []
@@ -214,8 +246,13 @@ def main():
                     print(b)
                 selecao_filial = input("\nSelecione a biblioteca que deseja acessar: ")
 
-                bibl = get_biblioteca(selecao_filial)
+                bibl = get_item(selecao_filial, bibliotecas, "num_filial")
 
                 menu_biblioteca(bibl)
+
+            case 3:
+                print("\nFechando o programa...")
+                sleep(1.5)
+                break
 
 main()
