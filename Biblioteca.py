@@ -20,13 +20,15 @@ def get_item(searched, list, variable=None):
             if getattr(item, f"{variable}") == searched:
                 return item
             else:
-                return None
+                continue
+        return None
     else:
         for item in list:
-                    if item == searched:
-                        return item
-                    else:
-                        return None
+            if item == searched:
+                return item
+            else:
+                continue
+        return None
 
 def pergunta(mensagem):
     while True:
@@ -80,10 +82,15 @@ class Biblioteca:
         self.estoque.append(item)
         return
 
-    def lend_item(self, item, destiny):
-        item.can_Lend = False
+    def lend_item(self, item):
+        item.can_lend = False
         item.isActive = False
-        destiny.add_item(item)
+        pass
+
+    def return_item(self, item):
+        item.can_lend = True
+        item.isActive = True
+        pass
 
 class ItemBiblioteca:
     def __init__(self, codigo, nome, genero, can_lend=True, isLent=False, isActive = True, origin=None):
@@ -96,7 +103,7 @@ class ItemBiblioteca:
         self.origin = origin
 
     def __str__(self):
-        return f"{self.codigo:^10} - {self.nome}"
+        return f"{self.codigo:^10} - {self.nome} - {"Disponivel" if self.isActive else "Indisponível"}"
 
 class Livro(ItemBiblioteca):
     def __init__(self, codigo, nome, genero, autor, editora, ano, page_num, type="Livro", can_lend=True, isLent=False, isActive=True, origin = None):
@@ -117,10 +124,11 @@ class Revista(ItemBiblioteca):
         self.type = type
 
     def __str__(self):
-        return f"{self.codigo:^10} - {self.nome} {self.edicao}ª edição - Mês de {self.mes} - Editora {self.editora}"
+        return f"{self.codigo:^10} - {self.nome} {self.edicao}ª edição - Mês de {self.mes} - Editora {self.editora} - {"Disponivel" if self.isActive else "Indisponível"}"
 
 def menu_biblioteca(biblioteca):
     while True:
+        biblioteca.save_storage()
         print(f"{biblioteca.nome:=^50}")
 
         for op in op_item:
@@ -145,7 +153,7 @@ def menu_biblioteca(biblioteca):
                 while True:
                     print(f"\n{"CADASTRO DE PRODUTO":=^50}\n")
                     item_atual = None
-                    codigo = input("\nInsira o codigo do item a ser cadastrado: ")
+                    codigo = input("\nInsira o codigo do item a ser cadastrado: ").strip()
                     nome = input("\nDigite o nome do item a ser cadastrado: ")
                     genero = input("\nDigite o gênero do item cadastrado: ")
         
@@ -177,24 +185,72 @@ def menu_biblioteca(biblioteca):
 
                     biblioteca.add_item(item_atual)
                     print(f"\nSucesso no cadastro {"do livro" if item_atual.type=="Livro" else "da revista"} {item_atual.nome} (COD {item_atual.codigo})!")
-                    biblioteca.save_storage()
                     if pergunta("Deseja cadastrar outro produto?"):
                         continue
                     else:
+                        print("Retornando ao menu...")
+                        sleep(1.5)
                         break
             case "3":
                 while True:
                     print(f"\n{"EMPRÉSTIMO DE PRODUTO":=^50}\n")
 
+                    if len([item for item in biblioteca.estoque if item.can_lend]) < 1:
+                        print("Não há itens disponíveis para empréstimo, retornando ao menu...")
+                        sleep(1.5)
+                        break
+
                     print("\nSelecione o item que deseja emprestar: \n")
                     for item in biblioteca.estoque:
-                        print(item)
+                        if item.can_lend:
+                            print(item)
 
-                    cod_item = get_item(input("\nDigite o código que deseja emprestar: "), biblioteca.estoque, "codigo")
+                    try:
+                        cod_item = get_item(input("\nDigite o código que deseja emprestar: "), biblioteca.estoque, "codigo")
+                        biblioteca.lend_item(cod_item)
+                        print("Item emprestado com sucesso!")
 
-                    print(cod_item)
+                    except Exception as e:
+                        print(e)
+                        break
 
-                    biblioteca.lend_item()
+                    if pergunta("Deseja emprestar outro item?"):
+                        continue
+                    else:
+                        print("Voltando ao menu...")
+                        sleep(1.5)
+                        break
+
+            case "4":
+                while True:
+                    print(f"\n{"RETORNO DE PRODUTO":=^50}\n")
+                    
+                    if len([item for item in biblioteca.estoque if not item.can_lend]) < 1:
+                        print("Não há itens disponíveis para retornar, voltando ao menu...")
+                        sleep(1.5)
+                        break
+
+                    print("\nSelecione o item que deseja retornar: \n")
+                    for item in biblioteca.estoque:
+                        if not item.can_lend:
+                            print(item)
+
+                    try:
+                        cod_item = get_item(input("\nDigite o código que deseja retornar: "), biblioteca.estoque, "codigo")
+                        biblioteca.return_item(cod_item)
+                        print("Item retornado com sucesso!")
+
+                    except Exception as e:
+                        print(e)
+                        break
+
+                    if pergunta("Deseja retornar outro item?"):
+                        continue
+                    else:
+                        print("Voltando ao menu...")
+                        sleep(1.5)
+                        break
+
 
 def load_library():
     internal_list = []
