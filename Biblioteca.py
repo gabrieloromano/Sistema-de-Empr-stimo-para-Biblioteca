@@ -1,6 +1,7 @@
 import os
 from time import sleep
 import json
+import subprocess
 
 save_path = "C:\\ProgramData\\Librarys\\"
 
@@ -29,6 +30,12 @@ def get_item(searched, list, variable=None):
             else:
                 continue
         return None
+
+def cont_regress(tempo):
+    for t in range(tempo, 0 , -1):
+        print(t)
+        sleep(1)
+    subprocess.run("cls", shell=True)
 
 def pergunta(mensagem):
     while True:
@@ -84,30 +91,35 @@ class Biblioteca:
 
     def lend_item(self, item):
         item.can_lend = False
-        item.isActive = False
         pass
 
     def return_item(self, item):
         item.can_lend = True
-        item.isActive = True
         pass
 
+    def has_lendable_items(self):
+        if len([item for item in self.estoque if item.can_lend]) < 1:
+            return False
+        return True
+
+    def has_returnable_items(self):
+        if len([item for item in self.estoque if not item.can_lend]) < 1:
+            return False
+        return True
+
 class ItemBiblioteca:
-    def __init__(self, codigo, nome, genero, can_lend=True, isLent=False, isActive = True, origin=None):
+    def __init__(self, codigo, nome, genero, can_lend=True):
         self.codigo = codigo
         self.nome = nome
         self.genero = genero
         self.can_lend = can_lend
-        self.isLent = isLent
-        self.isActive = isActive
-        self.origin = origin
 
     def __str__(self):
-        return f"{self.codigo:^10} - {self.nome} - {"Disponivel" if self.isActive else "Indisponível"}"
+        return f"{self.codigo} - {self.nome} - {"Disponivel" if self.can_lend else "Emprestado"}"
 
 class Livro(ItemBiblioteca):
-    def __init__(self, codigo, nome, genero, autor, editora, ano, page_num, type="Livro", can_lend=True, isLent=False, isActive=True, origin = None):
-        super().__init__(codigo, nome, genero, can_lend, isLent, isActive, origin)
+    def __init__(self, codigo, nome, genero, autor, editora, ano, page_num, type="Livro", can_lend=True):
+        super().__init__(codigo, nome, genero, can_lend)
         self.autor = autor
         self.editora = editora
         self.ano = ano
@@ -116,15 +128,15 @@ class Livro(ItemBiblioteca):
 
 
 class Revista(ItemBiblioteca):
-    def __init__(self, codigo, nome, genero, edicao, mes, editora, type="Revista", can_lend = None, isLent=False, isActive=True, origin = None):
-        super().__init__(codigo, nome, genero, can_lend, isLent, isActive, origin)
+    def __init__(self, codigo, nome, genero, edicao, mes, editora, type="Revista", can_lend=True):
+        super().__init__(codigo, nome, genero, can_lend)
         self.edicao = edicao
         self.mes = mes
         self.editora = editora
         self.type = type
 
     def __str__(self):
-        return f"{self.codigo:^10} - {self.nome} {self.edicao}ª edição - Mês de {self.mes} - Editora {self.editora} - {"Disponivel" if self.isActive else "Indisponível"}"
+        return f"{self.codigo:^10} - {self.nome} {self.edicao}ª edição - Mês de {self.mes} - Editora {self.editora} - {"Disponivel" if self.can_lend else "Emprestada"}"
 
 def menu_biblioteca(biblioteca):
     while True:
@@ -142,11 +154,11 @@ def menu_biblioteca(biblioteca):
                     print(item)
                 if pergunta("Deseja retornar ao menu?"):
                     print("\nRetornando ao menu...")
-                    sleep(1.5)
+                    cont_regress(3)
                     continue
                 else:
                     print("Saindo da biblioteca...")
-                    sleep(1.5)
+                    cont_regress(3)
                     break
 
             case "2":
@@ -170,14 +182,14 @@ def menu_biblioteca(biblioteca):
                                 ano = input("\nDigite o ano de lançamento do livro: ")
                                 page_num = int(input("\nDigite o número de páginas do livro: "))
         
-                                item_atual = Livro(codigo,nome,genero,autor,editora,ano,page_num, origin=biblioteca.nome)
+                                item_atual = Livro(codigo,nome,genero,autor,editora,ano,page_num)
                                 break
                             case "2" | "revista":
                                 edicao = input("\nInsira o nº da edição: ")
                                 mes = input("\nInsira o mês de emissão da edição: ")
                                 editora = input("\nInsira o nome da editora da revista: ")
         
-                                item_atual = Revista(codigo,nome,genero,edicao,mes,editora, origin=biblioteca.nome)
+                                item_atual = Revista(codigo,nome,genero,edicao,mes,editora)
                                 break
                             case _:
                                 print("\nInsira uma opção válida.")
@@ -189,15 +201,15 @@ def menu_biblioteca(biblioteca):
                         continue
                     else:
                         print("Retornando ao menu...")
-                        sleep(1.5)
+                        cont_regress(3)
                         break
             case "3":
                 while True:
                     print(f"\n{"EMPRÉSTIMO DE PRODUTO":=^50}\n")
 
-                    if len([item for item in biblioteca.estoque if item.can_lend]) < 1:
+                    if not biblioteca.has_lendable_items():
                         print("Não há itens disponíveis para empréstimo, retornando ao menu...")
-                        sleep(1.5)
+                        cont_regress(3)
                         break
 
                     print("\nSelecione o item que deseja emprestar: \n")
@@ -206,7 +218,20 @@ def menu_biblioteca(biblioteca):
                             print(item)
 
                     try:
-                        cod_item = get_item(input("\nDigite o código que deseja emprestar: "), biblioteca.estoque, "codigo")
+                        user_input = input('\nDigite o código que deseja emprestar, ou digite "SAIR" para cancelar: ')
+                        
+                        if user_input.lower() == "sair":
+                            print("\nRetornando ao menu...")
+                            cont_regress(3)
+                            break
+
+                        cod_item = get_item(user_input, biblioteca.estoque, "codigo")
+
+                        if cod_item == None:
+                            print("Não foi possível encontrar o item digitado, tente novamente!\n")
+                            cont_regress(3)
+                            continue
+
                         biblioteca.lend_item(cod_item)
                         print("Item emprestado com sucesso!")
 
@@ -218,25 +243,38 @@ def menu_biblioteca(biblioteca):
                         continue
                     else:
                         print("Voltando ao menu...")
-                        sleep(1.5)
+                        cont_regress(3)
                         break
 
             case "4":
                 while True:
                     print(f"\n{"RETORNO DE PRODUTO":=^50}\n")
                     
-                    if len([item for item in biblioteca.estoque if not item.can_lend]) < 1:
+                    if not biblioteca.has_returnable_items():
                         print("Não há itens disponíveis para retornar, voltando ao menu...")
-                        sleep(1.5)
+                        cont_regress(3)
                         break
 
-                    print("\nSelecione o item que deseja retornar: \n")
+                    print('\nSelecione o item que deseja retornar: \n')
                     for item in biblioteca.estoque:
                         if not item.can_lend:
                             print(item)
 
                     try:
-                        cod_item = get_item(input("\nDigite o código que deseja retornar: "), biblioteca.estoque, "codigo")
+                        user_input = input('\nDigite o código que deseja retornar, ou digite "SAIR" para cancelar: ')
+
+                        if user_input.lower() == "sair":
+                            print("\nRetornando ao menu...")
+                            cont_regress(3)
+                            break
+
+                        cod_item = get_item(user_input, biblioteca.estoque, "codigo")
+
+                        if cod_item == None:
+                            print("Não foi possível encontrar o item digitado, tente novamente!\n")
+                            cont_regress(3)
+                            continue
+                        
                         biblioteca.return_item(cod_item)
                         print("Item retornado com sucesso!")
 
@@ -248,9 +286,13 @@ def menu_biblioteca(biblioteca):
                         continue
                     else:
                         print("Voltando ao menu...")
-                        sleep(1.5)
+                        cont_regress(3)
                         break
 
+            case "5":
+                print("\nVoltando ao menu de seleção...")
+                cont_regress(3)
+                break
 
 def load_library():
     internal_list = []
@@ -260,11 +302,6 @@ def load_library():
             nome = nome.strip()
             internal_list.append(Biblioteca(nome.removesuffix(".json"), filial.strip()))
     return internal_list
-
-def get_biblioteca(filial):
-    for item in bibliotecas:
-        if item.num_filial == filial:
-            return item
 
 bibliotecas = load_library()
 
@@ -289,13 +326,13 @@ def main():
                         continue
                     else:
                         print("\nRetornando ao menu...")
-                        sleep(1.5)
+                        cont_regress(3)
                         break
 
             case 2:
                 if len(bibliotecas) <= 0:
                     print("\nNão há bibliotecas disponíveis para consulta. Retornando ao menu...\n")
-                    sleep(1.5)
+                    cont_regress(3)
                     continue
                 print(f"\n{" BIBLIOTECAS DISPONIVEIS ":=^50}\n")
                 for b in bibliotecas:
@@ -308,7 +345,7 @@ def main():
 
             case 3:
                 print("\nFechando o programa...")
-                sleep(1.5)
+                cont_regress(3)
                 break
 
 main()
