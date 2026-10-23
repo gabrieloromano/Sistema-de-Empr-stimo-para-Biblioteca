@@ -15,16 +15,16 @@ opt_item = ["[1] List items",
            "[4] Return item",
            "[5] Return to menu"]
 
-def get_item(searched, list, variable=None):
+def get_item(searched, list_search, variable=None):
     if variable:
-        for item in list:
+        for item in list_search:
             if getattr(item, f"{variable}") == searched:
                 return item
             else:
                 continue
         return None
     else:
-        for item in list:
+        for item in list_search:
             if item == searched:
                 return item
             else:
@@ -46,7 +46,7 @@ def question(message):
             case "2" | "no":
                 return False
             case _:
-                print("\nInsira uma opção válida.")
+                print("\nInsert a valid option.")
                 continue
 
 class RentStore:
@@ -73,7 +73,7 @@ class RentStore:
             file = open(self.path, "r")
             self.stock_dict = json.load(file)
             for prod in self.stock_dict:
-                internal_list.append(Book(**prod) if prod["type"] == "book" else Magazine(**prod) if prod["type"] == "magazine" else DVD(**prod))
+                internal_list.append(Book(**prod) if prod["media_type"] == "Book" else Magazine(**prod) if prod["media_type"] == "Magazine" else DVD(**prod))
             return internal_list
         return []
 
@@ -108,43 +108,40 @@ class RentStore:
         return True
 
 class Media:
-    def __init__(self, code, name, genre, max_renting, media_type, rented_time = None, can_rent=True):
+    def __init__(self, code, name, genre, media_type = None, rented_time = None, can_rent=True, max_renting = 14):
         self.code = code
         self.name = name
         self.genre = genre
-        self.max_renting = max_renting
         self.media_type = media_type
         self.rented_time = rented_time
         self.can_rent = can_rent
+        self.max_renting = max_renting
         
-
     def __str__(self):
         return f"{self.code} - {self.name} - {"Available" if self.can_rent else "Rented"}"
 
 class Book(Media):
-    def __init__(self, code, name, genre, author, publisher, year, page_num, can_rent = True, max_renting=14, rented_time = None, type="Book"):
-        super().__init__(code, name, genre, can_rent, max_renting, rented_time)
+    def __init__(self, code, name, genre, author, publisher, year, page_num, rented_time = None, can_rent = True, media_type = "Book", max_renting = 14):
+        super().__init__(code, name, genre, rented_time, can_rent, media_type, max_renting)
         self.author = author
         self.publisher = publisher
         self.year = year
         self.page_num = page_num
-        self.type = type
 
 
 class Magazine(Media):
-    def __init__(self, code, name, genre, edition, month, publisher, can_lend, max_lending, rented_time, type="Magazine"):
-        super().__init__(code, name, genre, can_lend, max_lending, rented_time)
+    def __init__(self, code, name, genre, edition, month, publisher, rented_time = None, can_rent = True, media_type = "Magazine", max_renting = 7):
+        super().__init__(code, name, genre, rented_time, can_rent, media_type, max_renting)
         self.edition = edition
         self.month = month
         self.publisher = publisher
-        self.type = type
 
     def __str__(self):
         return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else "Rented"}"
 
 class DVD(Media):
-    def __init__(self, code, name, genre, length, director, year, can_lend, max_lending, lent_time):
-        super().__init__(code, name, genre, can_lend, max_lending, lent_time)
+    def __init__(self, code, name, genre, length, director, year, rented_time = None, can_rent = True, media_type = "DVD", max_renting = 14):
+        super().__init__(code, name, genre, rented_time, can_rent, media_type, max_renting)
         self.length = length
         self.director = director
         self.year = year
