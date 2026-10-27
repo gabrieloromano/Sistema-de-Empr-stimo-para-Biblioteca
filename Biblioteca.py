@@ -15,6 +15,13 @@ opt_item = ["[1] List items",
            "[4] Return item",
            "[5] Return to menu"]
 
+class CustomError(Exception):
+    def __init__(self, message):
+        self.message=message
+
+    def __str__(self):
+        return f"\nErro: {self.message}"
+
 def get_item(searched, list_search, variable=None):
     if variable:
         for item in list_search:
@@ -22,14 +29,14 @@ def get_item(searched, list_search, variable=None):
                 return item
             else:
                 continue
-        return None
+        raise CustomError("Sorry! We couldn't find what you're searching for. Please try again!")
     else:
         for item in list_search:
             if item == searched:
                 return item
             else:
                 continue
-        return None
+        raise CustomError("Sorry! We couldn't find what you're searching for. Please try again!")
 
 def regress_count(time):
     for t in range(time, 0 , -1):
@@ -66,6 +73,10 @@ class RentStore:
     def __str__(self):
         return f"{"[" + self.filial_number + "] " + self.name:^50}"
 
+    def list_items(self, num_param):
+        media_types = ["Book", "Magazine", "DVD"]
+        print(f"\n{[item for item in self.stock if item.media_type == media_types[num_param-1]] if num_param != 4 else [item for item in self.stock]}")
+
     def load_storage(self):
         self.stock_dict = []
         internal_list = []
@@ -90,12 +101,14 @@ class RentStore:
         return
 
     def rent_item(self, item):
+        if not item.can_rent:
+            raise CustomError("This item is already rented! Please choose a valid item.")
         item.can_rent = False
-        pass
 
     def return_item(self, item):
+        if item.can_rent:
+            raise CustomError("This item is not rented! Please choose a valid item to return.")
         item.can_rent = True
-        pass
 
     def has_rentable_items(self):
         if len([item for item in self.stock if item.can_rent]) < 1:
@@ -108,7 +121,7 @@ class RentStore:
         return True
 
 class Media:
-    def __init__(self, code, name, genre, media_type = None, rented_time = None, can_rent=True, max_renting = 14):
+    def __init__(self, code, name, genre, media_type=None, rented_time=None, can_rent=True, max_renting=14):
         self.code = code
         self.name = name
         self.genre = genre
@@ -120,18 +133,26 @@ class Media:
     def __str__(self):
         return f"{self.code} - {self.name} - {"Available" if self.can_rent else "Rented"}"
 
+    def __repr__(self):
+        return f"{self.code} - {self.name} - {"Available" if self.can_rent else "Rented"}"
+
 class Book(Media):
-    def __init__(self, code, name, genre, author, publisher, year, page_num, rented_time = None, can_rent = True, media_type = "Book", max_renting = 14):
-        super().__init__(code, name, genre, rented_time, can_rent, media_type, max_renting)
+    def __init__(self, code, name, genre, author, publisher, year, page_num, rented_time=None, can_rent=True, media_type="Book", max_renting=14):
+        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting)
         self.author = author
         self.publisher = publisher
         self.year = year
         self.page_num = page_num
 
+    def __str__(self):
+        return super().__str__()
+
+    def __repr__(self):
+        return super().__repr__()
 
 class Magazine(Media):
-    def __init__(self, code, name, genre, edition, month, publisher, rented_time = None, can_rent = True, media_type = "Magazine", max_renting = 7):
-        super().__init__(code, name, genre, rented_time, can_rent, media_type, max_renting)
+    def __init__(self, code, name, genre, edition, month, publisher, rented_time=None, can_rent=True, media_type="Magazine", max_renting=7):
+        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting)
         self.edition = edition
         self.month = month
         self.publisher = publisher
@@ -139,15 +160,21 @@ class Magazine(Media):
     def __str__(self):
         return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else "Rented"}"
 
+    def __repr__(self):
+        return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else "Rented"}"
+
 class DVD(Media):
-    def __init__(self, code, name, genre, length, director, year, rented_time = None, can_rent = True, media_type = "DVD", max_renting = 14):
-        super().__init__(code, name, genre, rented_time, can_rent, media_type, max_renting)
+    def __init__(self, code, name, genre, length, director, year, rented_time=None, can_rent=True, media_type="DVD", max_renting=14):
+        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting)
         self.length = length
         self.director = director
         self.year = year
 
     def __str__(self):
         return f"{self.code:^10} - {self.name} - {self.length} min - {self.director} - {self.year} - {"Available" if self.can_rent else "Rented"}"
+
+    def __repr__(self):
+            return f"{self.code:^10} - {self.name} - {self.length} min - {self.director} - {self.year} - {"Available" if self.can_rent else "Rented"}"
 
 def rent_menu(rentstore):
     while True:
@@ -165,8 +192,17 @@ def rent_menu(rentstore):
                     print("\nThere is no available items on this Rental Store, returning to the menu...")
                     regress_count(3)
                     continue
-                for item in rentstore.stock:
-                    print(item)
+
+                print(f"\n{"ITEMS LIST":=^50}\n")
+                print("[1] List Books\n" \
+                        "[2] List Magazines\n" \
+                        "[3] List DVDs\n" \
+                        "[4] List All Medias\n") \
+        
+                media_select = int(input("Choose your option: "))
+
+                rentstore.list_items(media_select)
+                
                 if question("Do you wish to return to the menu?"):
                     print("\nReturning to menu...")
                     regress_count(3)
@@ -175,7 +211,6 @@ def rent_menu(rentstore):
                     print("Leaving rent menu...")
                     regress_count(3)
                     break
-
             case "2":
                 while True:
                     print(f"\n{"ITEM REGISTRATION":=^50}\n")
@@ -235,12 +270,12 @@ def rent_menu(rentstore):
                         break
             case "3":
                 while True:
-                    print(f"\n{"ITEM RENTING":=^50}\n")
-
                     if not rentstore.has_rentable_items():
                         print("There is no available items for renting, returning to menu...")
                         regress_count(3)
-                        break
+                        break    
+                    
+                    print(f"\n{"ITEM RENTING":=^50}\n")
 
                     print("\nChoose the item you wish to rent: \n")
                     for item in rentstore.stock:
