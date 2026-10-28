@@ -1,7 +1,8 @@
 import os
-from time import sleep
 import json
 import subprocess
+from time import sleep
+from datetime import datetime, timedelta
 
 save_path = "C:\\ProgramData\\Librarys\\"
 
@@ -20,22 +21,18 @@ class CustomError(Exception):
         self.message=message
 
     def __str__(self):
-        return f"\nErro: {self.message}"
+        return f"\nError: {self.message}"
 
 def get_item(searched, list_search, variable=None):
     if variable:
         for item in list_search:
             if getattr(item, f"{variable}") == searched:
                 return item
-            else:
-                continue
         raise CustomError("Sorry! We couldn't find what you're searching for. Please try again!")
     else:
         for item in list_search:
             if item == searched:
                 return item
-            else:
-                continue
         raise CustomError("Sorry! We couldn't find what you're searching for. Please try again!")
 
 def regress_count(time):
@@ -63,9 +60,8 @@ class RentStore:
         self.stock_dict = []
         self.path = f"{save_path}{f"{self.filial_number} - {self.name}"}.json"
         if not os.path.isfile(self.path):
-            file = open(self.path, "w")
-            file.write("[]")
-            file.close()
+            with open(self.path, "w") as file:
+                file.write("[]")
             self.stock = []
         else:
             self.stock = self.load_storage()
@@ -74,15 +70,19 @@ class RentStore:
         return f"{"[" + self.filial_number + "] " + self.name:^50}"
 
     def list_items(self, num_param):
+        if num_param not in [1,2,3,4]:
+            raise CustomError("\nPlease insert a valid option.")
         media_types = ["Book", "Magazine", "DVD"]
-        print(f"\n{[item for item in self.stock if item.media_type == media_types[num_param-1]] if num_param != 4 else [item for item in self.stock]}")
+        temp_list = self.stock if num_param == 4 else [item for item in self.stock if item.media_type == media_types[num_param-1]]
+        for item in temp_list:
+            print(f"\n{item}")
 
     def load_storage(self):
         self.stock_dict = []
         internal_list = []
         if os.path.isfile(self.path):
-            file = open(self.path, "r")
-            self.stock_dict = json.load(file)
+            with open(self.path, "r") as file:
+                self.stock_dict = json.load(file)
             for prod in self.stock_dict:
                 internal_list.append(Book(**prod) if prod["media_type"] == "Book" else Magazine(**prod) if prod["media_type"] == "Magazine" else DVD(**prod))
             return internal_list
@@ -90,11 +90,10 @@ class RentStore:
 
     def save_storage(self):
         self.stock_dict = []
-        file = open(self.path, "w")
-        for item in self.stock:
-            self.stock_dict.append(item.__dict__)
-        json.dump(self.stock_dict, file)
-        file.close()
+        with open(self.path, "w") as file:
+            for item in self.stock:
+                self.stock_dict.append(item.__dict__)
+            json.dump(self.stock_dict, file)
 
     def add_item(self, item):
         self.stock.append(item)
@@ -104,11 +103,13 @@ class RentStore:
         if not item.can_rent:
             raise CustomError("This item is already rented! Please choose a valid item.")
         item.can_rent = False
+        item.rented_time = datetime.now().strftime("%d/%m/%y")
 
     def return_item(self, item):
         if item.can_rent:
             raise CustomError("This item is not rented! Please choose a valid item to return.")
         item.can_rent = True
+        item.rented_time = None
 
     def has_rentable_items(self):
         if len([item for item in self.stock if item.can_rent]) < 1:
@@ -131,11 +132,18 @@ class Media:
         self.max_renting = max_renting
         
     def __str__(self):
-        return f"{self.code} - {self.name} - {"Available" if self.can_rent else "Rented"}"
+        return f"{self.code} - {self.name} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rentLimit()}"}"
 
     def __repr__(self):
-        return f"{self.code} - {self.name} - {"Available" if self.can_rent else "Rented"}"
+        return self.__str__()
 
+    def rentLimit(self, returnObj=False):
+        limit_rent = datetime.strptime(self.rented_time, "%d/%m/%y") + timedelta(days=self.max_renting)
+        if returnObj:
+            return limit_rent
+        else:
+            return limit_rent.strftime("%d/%m/%y")
+    
 class Book(Media):
     def __init__(self, code, name, genre, author, publisher, year, page_num, rented_time=None, can_rent=True, media_type="Book", max_renting=14):
         super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting)
@@ -143,12 +151,6 @@ class Book(Media):
         self.publisher = publisher
         self.year = year
         self.page_num = page_num
-
-    def __str__(self):
-        return super().__str__()
-
-    def __repr__(self):
-        return super().__repr__()
 
 class Magazine(Media):
     def __init__(self, code, name, genre, edition, month, publisher, rented_time=None, can_rent=True, media_type="Magazine", max_renting=7):
@@ -158,10 +160,10 @@ class Magazine(Media):
         self.publisher = publisher
 
     def __str__(self):
-        return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else "Rented"}"
+        return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rentLimit()}"}"
 
     def __repr__(self):
-        return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else "Rented"}"
+        return self.__str__()
 
 class DVD(Media):
     def __init__(self, code, name, genre, length, director, year, rented_time=None, can_rent=True, media_type="DVD", max_renting=14):
@@ -171,10 +173,10 @@ class DVD(Media):
         self.year = year
 
     def __str__(self):
-        return f"{self.code:^10} - {self.name} - {self.length} min - {self.director} - {self.year} - {"Available" if self.can_rent else "Rented"}"
+        return f"{self.code:^10} - {self.name} - {self.length} min - {self.director} - {self.year} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rentLimit()}"}"
 
     def __repr__(self):
-            return f"{self.code:^10} - {self.name} - {self.length} min - {self.director} - {self.year} - {"Available" if self.can_rent else "Rented"}"
+        return self.__str__()
 
 def rent_menu(rentstore):
     while True:
@@ -195,14 +197,13 @@ def rent_menu(rentstore):
 
                 print(f"\n{"ITEMS LIST":=^50}\n")
                 print("[1] List Books\n" \
-                        "[2] List Magazines\n" \
-                        "[3] List DVDs\n" \
-                        "[4] List All Medias\n") \
-        
-                media_select = int(input("Choose your option: "))
+                      "[2] List Magazines\n" \
+                      "[3] List DVDs\n" \
+                      "[4] List All Medias\n") \
 
+                media_select = int(input("Choose your option: "))
                 rentstore.list_items(media_select)
-                
+
                 if question("Do you wish to return to the menu?"):
                     print("\nReturning to menu...")
                     regress_count(3)
@@ -282,27 +283,23 @@ def rent_menu(rentstore):
                         if item.can_rent:
                             print(item)
 
-                    try:
-                        user_input = input('\nInsert the code of the item you wish to rent, or type "Quit" to cancel: ')
-                        
-                        if user_input.lower() == "quit":
-                            print("\nReturning to menu...")
-                            regress_count(3)
-                            break
+                    while True:
+                        try:
+                            user_input = input('\nInsert the code of the item you wish to rent, or type "Quit" to cancel: ')
+                            
+                            if user_input.lower() == "quit":
+                                print("\nReturning to menu...")
+                                regress_count(3)
+                                break
 
-                        cod_item = get_item(user_input, rentstore.stock, "code")
+                            cod_item = get_item(user_input, rentstore.stock, "code")
 
-                        if cod_item == None:
-                            print("The code you typed doesn't exist, please try again!\n")
-                            regress_count(3)
+                            rentstore.rent_item(cod_item)
+                            print("Success on renting the item!")
+
+                        except CustomError as error:
+                            print(error)
                             continue
-
-                        rentstore.rent_item(cod_item)
-                        print("Success on renting the item!")
-
-                    except Exception as e:
-                        print(e)
-                        break
 
                     if question("Do you wish to rent another item?"):
                         continue
@@ -334,18 +331,13 @@ def rent_menu(rentstore):
                             break
 
                         cod_item = get_item(user_input, rentstore.stock, "code")
-
-                        if cod_item == None:
-                            print("The code you typed doesn't exist, please try again!\n")
-                            regress_count(3)
-                            continue
                         
                         rentstore.return_item(cod_item)
                         print("Success on returning the item!")
 
-                    except Exception as e:
-                        print(e)
-                        break
+                    except CustomError as error:
+                        print(error)
+                        continue
 
                     if question("Do you wish to return another item?"):
                         continue
@@ -385,7 +377,13 @@ def main():
                     if "-" in name:
                         print("\nThe character '-' isn't supported, please insert another name!")
                         continue
-                    filial = int(input("\nPlease insert the filial number of the new Rental Store: "))
+                    while True:
+                        try:
+                            filial = int(input("\nPlease insert the filial number of the new Rental Store: "))
+                            break
+                        except ValueError:
+                            print("\nPlease insert a valid number.")
+                            continue
                     rentalstores.append(RentStore(name, filial))
                     if question("Do you wish to register a new Rental Store?"):
                         continue
@@ -402,9 +400,15 @@ def main():
                 print(f"\n{" AVAILABLE RENTAL STORES ":=^50}\n")
                 for b in rentalstores:
                     print(b)
-                filial_choice = input("\nChoose the Rental Store you want to access: ")
-
-                bibl = get_item(filial_choice, rentalstores, "filial_number")
+                
+                while True:
+                    try:
+                        filial_choice = input("\nChoose the Rental Store you want to access: ")
+                        bibl = get_item(filial_choice, rentalstores, "filial_number")
+                        break
+                    except CustomError as error:
+                        print(error)
+                        continue
 
                 rent_menu(bibl)
 
