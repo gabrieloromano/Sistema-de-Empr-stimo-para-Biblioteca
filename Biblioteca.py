@@ -16,6 +16,15 @@ opt_item = ["[1] List items",
            "[4] Return item",
            "[5] Return to menu"]
 
+def int_input(message):
+    while True:
+        try:
+            value = int(input(f"\n{message}"))
+            return value
+        except ValueError:
+            print("\nPlease insert a valid integer value.")
+            continue
+
 class CustomError(Exception):
     def __init__(self, message):
         self.message=message
@@ -71,9 +80,11 @@ class RentStore:
 
     def list_items(self, num_param):
         if num_param not in [1,2,3,4]:
-            raise CustomError("\nPlease insert a valid option.")
+            raise CustomError("Please insert a valid option.")
         media_types = ["Book", "Magazine", "DVD"]
         temp_list = self.stock if num_param == 4 else [item for item in self.stock if item.media_type == media_types[num_param-1]]
+        if len(temp_list) < 1:
+            raise CustomError("There are no items that correspond to your selection.")
         for item in temp_list:
             print(f"\n{item}")
 
@@ -108,8 +119,12 @@ class RentStore:
     def return_item(self, item):
         if item.can_rent:
             raise CustomError("This item is not rented! Please choose a valid item to return.")
-        item.can_rent = True
-        item.rented_time = None
+        if question(f"Please confirm the payment of the following value: U${item.pay_value():.2f}"):
+            item.can_rent = True
+            item.rented_time = None
+        else:
+            raise CustomError("Couldn't confirm the payment, item not returned.")
+        
 
     def has_rentable_items(self):
         if len([item for item in self.stock if item.can_rent]) < 1:
@@ -122,7 +137,7 @@ class RentStore:
         return True
 
 class Media:
-    def __init__(self, code, name, genre, media_type=None, rented_time=None, can_rent=True, max_renting=14):
+    def __init__(self, code, name, genre, media_type=None, rented_time=None, can_rent=True, max_renting=14, rent_value=14.0):
         self.code = code
         self.name = name
         self.genre = genre
@@ -130,50 +145,59 @@ class Media:
         self.rented_time = rented_time
         self.can_rent = can_rent
         self.max_renting = max_renting
+        self.rent_value = rent_value
         
     def __str__(self):
-        return f"{self.code} - {self.name} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rentLimit()}"}"
+        return f"{self.code} - {self.name} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rent_limit()}"}"
 
     def __repr__(self):
         return self.__str__()
 
-    def rentLimit(self, returnObj=False):
+    def rent_limit(self, return_obj=False):
         limit_rent = datetime.strptime(self.rented_time, "%d/%m/%y") + timedelta(days=self.max_renting)
-        if returnObj:
+        if return_obj:
             return limit_rent
         else:
             return limit_rent.strftime("%d/%m/%y")
+
+    def pay_value(self):
+        value = self.rent_value
+        if datetime.today() > self.rent_limit(True):
+            day_diff = datetime.today() - self.rent_limit(True)
+            day_diff = float(day_diff.days)
+            value += (self.rent_value / self.max_renting) * day_diff
+        return value
     
 class Book(Media):
-    def __init__(self, code, name, genre, author, publisher, year, page_num, rented_time=None, can_rent=True, media_type="Book", max_renting=14):
-        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting)
+    def __init__(self, code, name, genre, author, publisher, year, page_num, rented_time=None, can_rent=True, media_type="Book", max_renting=14, rent_value=28):
+        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting, rent_value=rent_value)
         self.author = author
         self.publisher = publisher
         self.year = year
         self.page_num = page_num
 
 class Magazine(Media):
-    def __init__(self, code, name, genre, edition, month, publisher, rented_time=None, can_rent=True, media_type="Magazine", max_renting=7):
-        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting)
+    def __init__(self, code, name, genre, edition, month, publisher, rented_time=None, can_rent=True, media_type="Magazine", max_renting=7, rent_value=7):
+        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting, rent_value=rent_value)
         self.edition = edition
         self.month = month
         self.publisher = publisher
 
     def __str__(self):
-        return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rentLimit()}"}"
+        return f"{self.code:^10} - {self.name} Edition {self.edition}  - {self.month} - Publisher {self.publisher} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rent_limit()}"}"
 
     def __repr__(self):
         return self.__str__()
 
 class DVD(Media):
-    def __init__(self, code, name, genre, length, director, year, rented_time=None, can_rent=True, media_type="DVD", max_renting=14):
-        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting)
+    def __init__(self, code, name, genre, length, director, year, rented_time=None, can_rent=True, media_type="DVD", max_renting=14, rent_value=35):
+        super().__init__(code=code, name=name, genre=genre, media_type=media_type, rented_time=rented_time, can_rent=can_rent, max_renting=max_renting, rent_value=rent_value)
         self.length = length
         self.director = director
         self.year = year
 
     def __str__(self):
-        return f"{self.code:^10} - {self.name} - {self.length} min - {self.director} - {self.year} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rentLimit()}"}"
+        return f"{self.code:^10} - {self.name} - {self.length} min - {self.director} - {self.year} - {"Available" if self.can_rent else f"Rented in {self.rented_time} - Return until {self.rent_limit()}"}"
 
     def __repr__(self):
         return self.__str__()
@@ -181,6 +205,7 @@ class DVD(Media):
 def rent_menu(rentstore):
     while True:
         rentstore.save_storage()
+        subprocess.run("cls", shell=True)
         print(f"{rentstore.name:=^50}")
 
         for op in opt_item:
@@ -189,20 +214,27 @@ def rent_menu(rentstore):
         select = input("\nSelect a option: ")
 
         match select:
+
             case "1":
                 if len(rentstore.stock) < 1:
                     print("\nThere is no available items on this Rental Store, returning to the menu...")
                     regress_count(3)
                     continue
 
+                subprocess.run("cls", shell=True)
                 print(f"\n{"ITEMS LIST":=^50}\n")
                 print("[1] List Books\n" \
                       "[2] List Magazines\n" \
                       "[3] List DVDs\n" \
                       "[4] List All Medias\n") \
 
-                media_select = int(input("Choose your option: "))
-                rentstore.list_items(media_select)
+                media_select = int_input("Choose your option: ")
+                try:
+                    rentstore.list_items(media_select)
+                except CustomError as e:
+                    print(f"{e}\nReturning to menu...")
+                    regress_count(3)
+                    continue
 
                 if question("Do you wish to return to the menu?"):
                     print("\nReturning to menu...")
@@ -212,8 +244,10 @@ def rent_menu(rentstore):
                     print("Leaving rent menu...")
                     regress_count(3)
                     break
+
             case "2":
                 while True:
+                    subprocess.run("cls", shell=True)
                     print(f"\n{"ITEM REGISTRATION":=^50}\n")
                     current_item = None
                     item_type = None
@@ -233,8 +267,8 @@ def rent_menu(rentstore):
                             case "1" | "book":
                                 author = input("\nInsert the book author: ")
                                 publisher = input("\nInsert the book publisher: ")
-                                year = input("\nInsert the book release year:  ")
-                                page_num = int(input("\nInsert the book number of pages:  "))
+                                year = int_input("Insert the book release year:  ")
+                                page_num = int_input("Insert the book number of pages:  ")
         
                                 current_item = Book(code,name,genre,author,publisher,year,page_num)
                                 item_type = "Book"
@@ -250,9 +284,9 @@ def rent_menu(rentstore):
                                 break
 
                             case "3" | "dvd":
-                                length = input("\nInsert the DVD's length (in minutes): ")
+                                length = int_input("Insert the DVD's length (in minutes): ")
                                 director = input("\nInsert the DVD director's name: ")
-                                year = input("\nInsert the DVD's release year: ")
+                                year = int_input("Insert the DVD's release year: ")
 
                                 current_item = DVD(code,name,genre, length, director, year)
                                 item_type = "DVD"
@@ -269,13 +303,15 @@ def rent_menu(rentstore):
                         print("Returning to menu...")
                         regress_count(3)
                         break
+
             case "3":
                 while True:
                     if not rentstore.has_rentable_items():
                         print("There is no available items for renting, returning to menu...")
                         regress_count(3)
                         break    
-                    
+
+                    subprocess.run("cls", shell=True)
                     print(f"\n{"ITEM RENTING":=^50}\n")
 
                     print("\nChoose the item you wish to rent: \n")
@@ -283,23 +319,24 @@ def rent_menu(rentstore):
                         if item.can_rent:
                             print(item)
 
-                    while True:
-                        try:
-                            user_input = input('\nInsert the code of the item you wish to rent, or type "Quit" to cancel: ')
-                            
-                            if user_input.lower() == "quit":
-                                print("\nReturning to menu...")
-                                regress_count(3)
-                                break
+                    
+                    try:
+                        user_input = input('\nInsert the code of the item you wish to rent, or type "Quit" to cancel: ')
+                        
+                        if user_input.lower() == "quit":
+                            print("\nReturning to menu...")
+                            regress_count(3)
+                            break
 
-                            cod_item = get_item(user_input, rentstore.stock, "code")
+                        cod_item = get_item(user_input, rentstore.stock, "code")
 
-                            rentstore.rent_item(cod_item)
-                            print("Success on renting the item!")
+                        rentstore.rent_item(cod_item)
+                        print("Success on renting the item!")
 
-                        except CustomError as error:
-                            print(error)
-                            continue
+                    except CustomError as error:
+                        print(error)
+                        regress_count(3)
+                        continue
 
                     if question("Do you wish to rent another item?"):
                         continue
@@ -331,13 +368,13 @@ def rent_menu(rentstore):
                             break
 
                         cod_item = get_item(user_input, rentstore.stock, "code")
-                        
                         rentstore.return_item(cod_item)
-                        print("Success on returning the item!")
 
                     except CustomError as error:
                         print(error)
                         continue
+
+                    print("Success on returning the item!")
 
                     if question("Do you wish to return another item?"):
                         continue
@@ -368,7 +405,7 @@ def main():
         for b in opt_rent:
             print(f"{b:^50}\n")
 
-        select = int(input("Choose an option: "))
+        select = int_input("Choose an option: ")
 
         match select:
             case 1:
@@ -377,14 +414,11 @@ def main():
                     if "-" in name:
                         print("\nThe character '-' isn't supported, please insert another name!")
                         continue
-                    while True:
-                        try:
-                            filial = int(input("\nPlease insert the filial number of the new Rental Store: "))
-                            break
-                        except ValueError:
-                            print("\nPlease insert a valid number.")
-                            continue
+            
+                    filial = int_input("Please insert the filial number of the new Rental Store: ")
+                        
                     rentalstores.append(RentStore(name, filial))
+
                     if question("Do you wish to register a new Rental Store?"):
                         continue
                     else:
@@ -416,5 +450,10 @@ def main():
                 print("\nClosing the program...")
                 regress_count(3)
                 break
+
+            case _:
+                print("\nPlease choose a valid option.")
+                regress_count(1)
+                continue
 
 main()
